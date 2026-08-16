@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f8fc" />
+    <title>Part 1 练习 · IELTS Speaking</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">IELTS SPEAKING</p>
+          <h1>Part 1 练习</h1>
+        </div>
+        <button class="history-button" id="historyButton" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.49-6.01M3.5 5.5v4h4M12 7.5V12l3.2 2" /></svg>
+          <span>练习记录</span>
+        </button>
+      </header>
+
+      <section class="profile-card" id="profileCard" aria-label="练习设置">
+        <div>
+          <p class="card-kicker">PRACTICE PROFILE</p>
+          <h2>练习设置</h2>
+        </div>
+        <div class="profile-options">
+          <div class="profile-option">
+            <span>考试地区</span>
+            <div class="identity-segment region-segment" role="group" aria-label="选择考试地区">
+              <button type="button" data-region="china" aria-pressed="false">中国大陆</button>
+              <button type="button" data-region="canada" aria-pressed="true">加拿大</button>
+            </div>
+          </div>
+          <div class="profile-option">
+            <span>考生身份</span>
+            <div class="identity-segment" role="group" aria-label="选择工作或学习身份">
+              <button type="button" data-identity="work" aria-pressed="false">工作</button>
+              <button type="button" data-identity="study" aria-pressed="true">学习</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="question-card" id="questionCard" aria-live="polite">
+        <div class="question-heading">
+          <div>
+            <p class="card-kicker" id="topicProgress">CURRENT QUESTION</p>
+            <p class="question-progress" id="questionProgress">尚未开始</p>
+          </div>
+          <button class="mark-button" id="markButton" type="button" disabled aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 4.5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16l-5.5-3.4-5.5 3.4z" /></svg>
+            <span>标记此题</span>
+          </button>
+        </div>
+        <h2 id="questionText">准备好后，考官将在这里提问。</h2>
+        <div class="question-status">
+          <div class="voice-state" id="voiceState">
+            <span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <span id="phaseText">等待开始</span>
+          </div>
+          <span class="recording-indicator is-hidden" id="recordingIndicator"><i></i>录音中</span>
+          <time id="answerTime">00:00</time>
+        </div>
+      </section>
+
+      <section class="welcome-actions" id="welcomeActions" aria-label="选择练习模式">
+        <div class="primary-actions">
+          <button class="primary-button" id="simulationButton" type="button">开始模拟考试</button>
+          <button class="secondary-button" id="continuousButton" type="button">连续练习</button>
+        </div>
+        <button class="marked-practice" id="specialtyPracticeButton" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10M18 16v4M16 18h4" /></svg>
+          <span><strong>专项练习</strong><small id="markedCount">自选主题或复习标记题</small></span>
+          <span aria-hidden="true">›</span>
+        </button>
+        <label class="recording-setting">
+          <span><strong>录制本次练习</strong><small>记住当前选择</small></span>
+          <input id="recordingSetting" type="checkbox" role="switch" aria-label="录制本次练习" />
+          <i aria-hidden="true"></i>
+        </label>
+        <div class="local-status">
+          <span><i id="serviceDot"></i><span id="serviceStatus">正在检查本地考官语音…</span></span>
+        </div>
+      </section>
+
+      <section class="practice-actions is-hidden" id="practiceActions" aria-label="练习控制">
+        <div class="primary-actions active-controls">
+          <button class="secondary-button" id="repeatButton" type="button">重听问题</button>
+          <button class="primary-button" id="nextButton" type="button">回答完毕，下一题</button>
+        </div>
+        <button class="end-button" id="endButton" type="button">结束本次练习</button>
+      </section>
+    </main>
+
+    <dialog class="sheet" id="specialtyDialog">
+      <div class="sheet-content">
+        <button class="close-button" data-close="specialtyDialog" type="button" aria-label="关闭">×</button>
+        <p class="eyebrow">FOCUSED PRACTICE</p>
+        <h2>专项练习</h2>
+        <div class="specialty-tabs" role="tablist" aria-label="专项练习题库">
+          <button type="button" role="tab" data-specialty-tab="all" aria-selected="true">全部主题</button>
+          <button type="button" role="tab" data-specialty-tab="marked" aria-selected="false">已标记 <span id="markedTopicCount">0</span></button>
+        </div>
+        <label class="topic-search" id="topicSearchWrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+          <input id="topicSearch" type="search" placeholder="搜索主题" aria-label="搜索主题" autocomplete="off" />
+        </label>
+        <div class="marked-topic-list" id="specialtyTopicList"></div>
+        <div class="specialty-all-actions" id="specialtyAllActions">
+          <button class="secondary-button" id="randomTopicButton" type="button">随机选择 1 个主题</button>
+          <button class="primary-button" id="startSelectedTopicsButton" type="button" disabled>开始练习</button>
+        </div>
+        <div class="is-hidden" id="specialtyMarkedActions">
+          <div class="marked-topic-actions">
+            <button class="remove-marked-button" id="removeMarkedTopicsButton" type="button" disabled>移除</button>
+            <button class="primary-button" id="startSelectedMarkedButton" type="button" disabled>开始练习</button>
+          </div>
+          <button class="secondary-button full-button marked-random-button" id="randomMarkedButton" type="button">随机开始全部标记题目</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="sheet" id="resultDialog">
+      <div class="sheet-content">
+        <button class="close-button" id="closeResultButton" type="button" aria-label="关闭">×</button>
+        <p class="eyebrow">PRACTICE COMPLETE</p>
+        <h2>本次练习已结束</h2>
+        <div class="result-stats">
+          <div><strong id="resultTopics">0</strong><span>个主题</span></div>
+          <div><strong id="resultQuestions">0</strong><span>道问题</span></div>
+          <div><strong id="resultTime">00:00</strong><span>总时长</span></div>
+        </div>
+        <p class="dialog-copy" id="recordingSummary">录音已在本机准备好，你可以选择导出或直接结束。</p>
+        <div class="sheet-actions">
+          <button class="secondary-button" id="discardButton" type="button">仅结束，不导出</button>
+          <button class="primary-button" id="exportButton" type="button">导出本次录音</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="sheet" id="historyDialog">
+      <div class="sheet-content">
+        <button class="close-button" data-close="historyDialog" type="button" aria-label="关闭">×</button>
+        <p class="eyebrow">YOUR PRACTICE</p>
+        <h2>练习记录</h2>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </dialog>
+
+    <script src="bank.js"></script>
+    <script src="regional-banks.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
