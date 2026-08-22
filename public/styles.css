@@ -110,6 +110,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .close-button { position: absolute; right: 20px; top: 16px; width: 34px; height: 34px; border-radius: 50%; background: #f0f2f7; color: #59647a; font-size: 1.5rem; }
 .dialog-copy { margin: 16px 0 20px; color: #707b90; font-size: .9rem; line-height: 1.65; }
 .prep-intro { margin-bottom: 14px; }
+.prep-intro-mobile { display: none; }
 .prep-band-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; padding: 11px 13px; border: 1px solid #e1e5ef; border-radius: 13px; background: #f8f9fc; }
 .prep-band-row > span { color: #626d82; font-size: .82rem; font-weight: 700; }
 .prep-band-row select { min-width: 96px; height: 36px; padding: 0 32px 0 12px; border: 1px solid #dce1eb; border-radius: 10px; outline: 0; background: #fff; color: #40506f; font-weight: 720; }
@@ -180,6 +181,21 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .active-controls .secondary-button { flex: 1; }
   .sheet-content { padding: 27px 20px; }
   .sheet-actions { align-items: stretch; flex-direction: column-reverse; }
-  .prep-picker-actions { grid-template-columns: 1fr; }
+  #answerPrepDialog { width: calc(100% - 12px); height: 96dvh; max-height: 96dvh; border-radius: 22px; }
+  #answerPrepDialog .sheet-content { padding: 20px 15px 13px; }
+  #answerPrepDialog .eyebrow { display: none; }
+  #answerPrepDialog h2 { margin: 0 38px 0 0; font-size: 1.42rem; }
+  #answerPrepDialog .prep-intro { margin: 9px 0; font-size: .78rem; line-height: 1.5; }
+  .prep-intro-desktop { display: none; }
+  .prep-intro-mobile { display: inline; }
+  #answerPrepDialog .prep-band-row { min-height: 42px; margin-bottom: 8px; padding: 5px 10px; }
+  #answerPrepDialog .prep-band-row select { height: 32px; }
+  #answerPrepDialog .topic-search { margin-bottom: 8px; }
+  #answerPrepDialog .topic-search input { height: 38px; }
+  #answerPrepDialog .prep-select-row { margin-bottom: 6px; }
+  #answerPrepDialog .marked-topic-list { gap: 6px; }
+  #answerPrepDialog .marked-topic-item { min-height: 49px; padding: 7px 10px; }
+  .prep-picker-actions { grid-template-columns: .95fr 1.05fr; gap: 8px; margin-top: 9px; }
+  .prep-picker-actions .primary-button, .prep-picker-actions .secondary-button { min-height: 48px; padding: 0 8px; white-space: nowrap; font-size: .78rem; }
   .prep-secondary-actions { justify-content: space-around; }
 }
