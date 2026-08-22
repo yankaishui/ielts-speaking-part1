@@ -41,6 +41,10 @@ h1 { font-size: clamp(1.65rem, 4vw, 2rem); letter-spacing: -.05em; }
 .question-heading { justify-content: space-between; gap: 18px; }
 .question-progress { margin-top: 10px; color: #758097; font-size: .76rem; font-weight: 720; letter-spacing: .08em; }
 .question-card > h2 { margin: 43px 0 auto; max-width: 650px; font-size: clamp(1.65rem, 5vw, 2.25rem); line-height: 1.23; letter-spacing: -.035em; }
+.prep-answer-editor { margin-top: 18px; }
+.prep-answer-editor textarea { display: block; width: 100%; height: 150px !important; min-height: 150px !important; max-height: 150px !important; resize: none !important; overflow-y: auto; box-sizing: border-box; border: 1px solid #dfe4ed; border-radius: 16px; padding: 14px 15px; background: #fbfcfe; color: var(--ink); font: inherit; font-size: .95rem; line-height: 1.65; outline: none; transition: border-color .2s, box-shadow .2s, background .2s; }
+.prep-answer-editor textarea:focus { border-color: #8aa5e8; background: #fff; box-shadow: 0 0 0 4px #4c72d412; }
+.prep-answer-editor textarea::placeholder { color: #a0a9b8; }
 .mark-button { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 12px; border: 1px solid #dfe4ee; border-radius: 12px; background: #fff; color: #59647a; font-size: .82rem; font-weight: 700; }
 .mark-button svg { width: 18px; height: 18px; }
 .mark-button[aria-pressed="true"] { border-color: #cbd5ff; background: #f1f4ff; color: var(--accent); }
@@ -75,6 +79,10 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .marked-practice > span:nth-child(2) { display: grid; gap: 3px; }
 .marked-practice strong { font-size: .86rem; }
 .marked-practice small { color: #7c879d; font-size: .72rem; }
+.answer-prep-entry { border-color: #d9e7df; background: #f4faf7; color: #348165; }
+.answer-prep-entry small { color: #718b81; }
+.marked-topic-item.is-prepared .marked-topic-copy strong { color: #2d8a62; }
+.marked-topic-item.is-prepared .marked-topic-copy small { color: #62a186; }
 .recording-setting { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 12px; padding: 13px 16px; border: 1px solid var(--line); border-radius: 17px; background: #fff; cursor: pointer; }
 .recording-setting > span { display: grid; gap: 3px; }
 .recording-setting strong { color: #4b556d; font-size: .84rem; }
@@ -92,6 +100,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .local-status i.fallback { background: #e3a752; }
 .active-controls .secondary-button { flex: .75; }
 .end-button { display: block; margin: 15px auto 0; padding: 6px 10px; background: transparent; color: #7d8799; font-size: .82rem; font-weight: 650; }
+.prep-secondary-actions { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.prep-secondary-actions .end-button { margin: 14px 0 0; }
 
 .sheet { width: min(calc(100% - 32px), 570px); max-height: min(82vh, 680px); padding: 0; border: 0; border-radius: 26px; color: #1d2333; box-shadow: 0 30px 70px #17203f50; }
 .sheet::backdrop { background: #1c254366; backdrop-filter: blur(3px); }
@@ -99,8 +109,23 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .sheet h2 { margin-top: 8px; font-size: 1.65rem; letter-spacing: -.04em; }
 .close-button { position: absolute; right: 20px; top: 16px; width: 34px; height: 34px; border-radius: 50%; background: #f0f2f7; color: #59647a; font-size: 1.5rem; }
 .dialog-copy { margin: 16px 0 20px; color: #707b90; font-size: .9rem; line-height: 1.65; }
+.prep-intro { margin-bottom: 14px; }
+.prep-band-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; padding: 11px 13px; border: 1px solid #e1e5ef; border-radius: 13px; background: #f8f9fc; }
+.prep-band-row > span { color: #626d82; font-size: .82rem; font-weight: 700; }
+.prep-band-row select { min-width: 96px; height: 36px; padding: 0 32px 0 12px; border: 1px solid #dce1eb; border-radius: 10px; outline: 0; background: #fff; color: #40506f; font-weight: 720; }
+.prep-band-row select:focus { border-color: #aebcf5; box-shadow: 0 0 0 3px #516ad818; }
+.prep-select-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -2px 2px 10px; color: #7d8799; font-size: .74rem; }
+.prep-select-row > span:last-child { display: flex; gap: 4px; }
+.prep-select-row button { padding: 5px 8px; border-radius: 8px; background: transparent; color: var(--accent); font-size: .74rem; font-weight: 720; }
 .full-button { width: 100%; }
 .sheet-actions { gap: 10px; margin-top: 20px; }
+.prep-result-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+.prep-result-actions .primary-button { grid-column: 1 / -1; }
+.prep-picker-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+#answerPrepDialog { height: min(90dvh, 700px); max-height: min(90dvh, 700px); overflow: hidden; }
+#answerPrepDialog .sheet-content { display: flex; height: 100%; flex-direction: column; box-sizing: border-box; }
+#answerPrepDialog .marked-topic-list { min-height: 0; max-height: none; flex: 1 1 auto; margin-bottom: 0; overscroll-behavior: contain; }
+#answerPrepDialog .prep-picker-actions { flex: 0 0 auto; }
 .result-stats { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 22px; border: 1px solid #e5e8f0; border-radius: 17px; overflow: hidden; }
 .result-stats div { padding: 18px 8px; border-right: 1px solid #e5e8f0; text-align: center; }
 .result-stats div:last-child { border: 0; }
@@ -148,10 +173,13 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .region-segment { min-width: 0; }
   .question-card { min-height: 310px; padding: 21px; }
   .question-card > h2 { margin-top: 35px; font-size: 1.72rem; }
+  .prep-answer-editor textarea { height: 168px !important; min-height: 168px !important; max-height: 168px !important; }
   .mark-button span { display: none; }
   .mark-button { width: 42px; justify-content: center; padding: 0; }
   .primary-actions { align-items: stretch; flex-direction: column; }
   .active-controls .secondary-button { flex: 1; }
   .sheet-content { padding: 27px 20px; }
   .sheet-actions { align-items: stretch; flex-direction: column-reverse; }
+  .prep-picker-actions { grid-template-columns: 1fr; }
+  .prep-secondary-actions { justify-content: space-around; }
 }

@@ -8,6 +8,8 @@ const HISTORY_KEY = "ielts-part1-history-v2";
 const IDENTITY_KEY = "ielts-part1-identity";
 const RECENT_TOPICS_KEY = "ielts-part1-recent-topics";
 const RECORDING_KEY = "ielts-part1-recording-enabled";
+const PREP_BAND_KEY = "ielts-part1-prep-target-band";
+const PREP_DRAFT_KEY = "ielts-part1-prep-drafts-v1";
 const TRANSITIONS = {
   topic: [
     "Thank you. Now, let's move on to a new topic.",
@@ -63,6 +65,7 @@ function loadBank(region) {
 
 function markedKey(region) { return `ielts-part1-marked-${region}`; }
 function recentTopicsKey(region) { return `${RECENT_TOPICS_KEY}-${region}`; }
+function prepDraftKey() { return `${PREP_DRAFT_KEY}-${state.region}-${state.identity}`; }
 
 const initialRegion = ["china", "canada"].includes(localStorage.getItem(REGION_KEY)) ? localStorage.getItem(REGION_KEY) : "canada";
 let bank = loadBank(initialRegion);
@@ -82,6 +85,8 @@ const state = {
   currentSource: null,
   speechToken: 0,
   audioContext: null,
+  audioPrimed: false,
+  voiceReady: null,
   recordDestination: null,
   mediaStream: null,
   mediaRecorder: null,
@@ -95,7 +100,12 @@ const state = {
   specialtySelection: new Set(),
   localVoiceAvailable: false,
   pendingMode: null,
-  finishing: false
+  finishing: false,
+  prepSelection: new Set(),
+  prepTargetBand: localStorage.getItem(PREP_BAND_KEY) || "7.0",
+  prepItems: [],
+  prepAnswers: new Map(),
+  prepSkipped: new Set()
 };
 
 function shuffled(items) {
@@ -198,12 +208,26 @@ function buildTopicPractice(topicIds) {
     .map((topic) => ({ topic, questions: examQuestions(topic) }));
 }
 
+function preparationEligibleTopics() {
+  return bank.topics.filter((topic) => topic.identity === "all" || topic.identity === state.identity);
+}
+
+function buildPreparation(topicIds) {
+  return preparationEligibleTopics()
+    .filter((topic) => topicIds.includes(topic.id))
+    .map((topic) => ({ topic, questions: [...topic.questions] }));
+}
+
 function formatTime(seconds) {
   return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function currentSegment() { return state.segments[state.segmentIndex]; }
 function currentQuestion() { return currentSegment()?.questions[state.questionIndex]; }
+function currentPrepItem() {
+  const question = currentQuestion();
+  return question ? state.prepItems.find((item) => item.question.id === question.id) : null;
+}
 
 function updateIdentityUI() {
   document.querySelectorAll("[data-identity]").forEach((button) => {
@@ -326,6 +350,72 @@ function removeSelectedMarkedTopics() {
   renderSpecialtyPicker();
 }
 
+function prepTopicPickerItem(topic) {
+  const label = document.createElement("label");
+  label.className = "marked-topic-item";
+  const preparedCount = topic.questions.filter((question) => state.prepAnswers.get(question.id)?.trim()).length;
+  if (preparedCount) label.classList.add("is-prepared");
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.value = topic.id;
+  checkbox.checked = state.prepSelection.has(topic.id);
+  checkbox.setAttribute("aria-label", `选择 ${topic.title}`);
+  const copy = document.createElement("span");
+  copy.className = "marked-topic-copy";
+  const title = document.createElement("strong");
+  title.textContent = topic.title;
+  const count = document.createElement("small");
+  count.textContent = preparedCount ? `已准备 ${preparedCount} / ${topic.questions.length} 道` : `${topic.questions.length} 道题`;
+  copy.append(title, count);
+  checkbox.addEventListener("change", () => {
+    if (checkbox.checked) state.prepSelection.add(topic.id);
+    else state.prepSelection.delete(topic.id);
+    updatePrepSelectionSummary();
+  });
+  label.append(checkbox, copy);
+  return label;
+}
+
+function updatePrepSelectionSummary() {
+  const topics = preparationEligibleTopics().filter((topic) => state.prepSelection.has(topic.id));
+  const questionCount = topics.reduce((sum, topic) => sum + topic.questions.length, 0);
+  const hasPreparedContent = preparationEligibleTopics().some((topic) => topic.questions.some((question) => state.prepAnswers.get(question.id)?.trim()));
+  $("prepSelectionSummary").textContent = `已选择 ${topics.length} 个主题，共 ${questionCount} 道题`;
+  $("startPrepButton").disabled = !topics.length;
+  $("prepDownloadSavedButton").disabled = !hasPreparedContent;
+}
+
+function renderPrepPicker() {
+  const query = $("prepTopicSearch").value.trim().toLowerCase();
+  const topics = preparationEligibleTopics().filter((topic) => !query || topic.title.toLowerCase().includes(query));
+  const content = [];
+  for (const type of ["opening", "seasonal"]) {
+    const group = topics.filter((topic) => topic.type === type);
+    if (!group.length) continue;
+    const heading = document.createElement("p");
+    heading.className = "topic-section-title";
+    heading.textContent = type === "opening" ? "常规开场" : "当季抽查";
+    content.push(heading, ...group.map(prepTopicPickerItem));
+  }
+  if (!content.length) {
+    const empty = document.createElement("p");
+    empty.className = "specialty-empty";
+    empty.textContent = "没有找到匹配的主题";
+    content.push(empty);
+  }
+  $("prepTopicList").replaceChildren(...content);
+  updatePrepSelectionSummary();
+}
+
+function openAnswerPrepPicker() {
+  loadPreparationDrafts();
+  state.prepSelection.clear();
+  $("prepTopicSearch").value = "";
+  $("prepBandSelect").value = state.prepTargetBand;
+  renderPrepPicker();
+  $("answerPrepDialog").showModal();
+}
+
 function updateMarkButton() {
   const question = currentQuestion();
   const isMarked = Boolean(question && marked.has(question.id));
@@ -340,6 +430,10 @@ function setPhase(phase, label) {
   $("voiceState").classList.toggle("is-speaking", phase === "speaking" || phase === "loading");
   $("nextButton").disabled = phase !== "answering";
   $("repeatButton").disabled = phase === "loading";
+  const prepAnswering = state.mode === "prepare" && phase === "answering";
+  $("prepSaveButton").disabled = !prepAnswering;
+  $("prepPreviousButton").disabled = state.mode !== "prepare" || state.prepItems.indexOf(currentPrepItem()) <= 0 || phase === "loading";
+  $("prepSkipButton").disabled = state.mode !== "prepare" || phase === "loading";
 }
 
 function renderCurrentQuestion() {
@@ -347,9 +441,18 @@ function renderCurrentQuestion() {
   const question = currentQuestion();
   if (!segment || !question) return;
   $("topicProgress").textContent = `TOPIC ${state.segmentIndex + 1} · ${segment.topic.title}`;
-  $("questionProgress").textContent = `QUESTION ${state.questionIndex + 1} / ${segment.questions.length}`;
+  const prepItem = state.mode === "prepare" ? currentPrepItem() : null;
+  $("questionProgress").textContent = prepItem
+    ? `${prepItem.code} · QUESTION ${state.questionIndex + 1} / ${segment.questions.length}`
+    : `QUESTION ${state.questionIndex + 1} / ${segment.questions.length}`;
   $("questionText").textContent = question.text;
   $("answerTime").textContent = "00:00";
+  $("answerTime").classList.toggle("is-hidden", state.mode === "prepare");
+  $("prepAnswerEditor").classList.toggle("is-hidden", state.mode !== "prepare");
+  if (state.mode === "prepare") {
+    $("prepAnswerInput").value = state.prepAnswers.get(question.id) || "";
+  }
+  $("markButton").classList.toggle("is-hidden", state.mode === "prepare");
   updateMarkButton();
 }
 
@@ -358,11 +461,15 @@ function resetWelcome() {
   state.mode = null;
   $("welcomeActions").classList.remove("is-hidden");
   $("practiceActions").classList.add("is-hidden");
+  $("prepActions").classList.add("is-hidden");
+  $("prepAnswerEditor").classList.add("is-hidden");
+  $("markButton").classList.remove("is-hidden");
   $("topicProgress").textContent = "CURRENT QUESTION";
   $("questionProgress").textContent = "尚未开始";
   $("questionText").textContent = "准备好后，考官将在这里提问。";
   $("phaseText").textContent = "等待开始";
   $("answerTime").textContent = "00:00";
+  $("answerTime").classList.remove("is-hidden");
   $("voiceState").classList.remove("is-speaking");
   $("recordingIndicator").classList.add("is-hidden");
   $("markButton").disabled = true;
@@ -403,6 +510,19 @@ async function ensureAudioContext() {
   if (state.audioContext.state === "suspended") await state.audioContext.resume();
 }
 
+function addPlaybackLeadIn(buffer, seconds = .22) {
+  const leadFrames = Math.ceil(buffer.sampleRate * seconds);
+  const padded = state.audioContext.createBuffer(
+    buffer.numberOfChannels,
+    buffer.length + leadFrames,
+    buffer.sampleRate
+  );
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    padded.copyToChannel(buffer.getChannelData(channel), channel, leadFrames);
+  }
+  return padded;
+}
+
 function preferredMimeType() {
   const candidates = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/webm"];
   return candidates.find((type) => window.MediaRecorder?.isTypeSupported(type)) || "";
@@ -419,8 +539,20 @@ async function startRecording() {
   state.recordingMime = preferredMimeType();
   state.mediaRecorder = new MediaRecorder(state.recordDestination.stream, state.recordingMime ? { mimeType: state.recordingMime } : undefined);
   state.mediaRecorder.addEventListener("dataavailable", (event) => { if (event.data.size) state.recordingChunks.push(event.data); });
+  const recorderStarted = new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    state.mediaRecorder.addEventListener("start", finish, { once: true });
+    setTimeout(finish, 2000);
+  });
   state.mediaRecorder.start(1000);
   $("recordingIndicator").classList.remove("is-hidden");
+  await recorderStarted;
+  await new Promise((resolve) => setTimeout(resolve, 1200));
 }
 
 async function stopRecording() {
@@ -466,15 +598,25 @@ function stopPlayback() {
   window.speechSynthesis?.cancel();
 }
 
-function startAnswerTimer(reset = true) {
+function activateAnswerTimer(reset = true, label = "请开始回答") {
   clearInterval(state.answerTimer);
   if (reset) state.answerSeconds = 0;
   $("answerTime").textContent = formatTime(state.answerSeconds);
-  setPhase("answering", "请开始回答");
+  setPhase("answering", label);
   state.answerTimer = setInterval(() => {
     state.answerSeconds += 1;
     $("answerTime").textContent = formatTime(state.answerSeconds);
   }, 1000);
+}
+
+function startAnswerTimer(reset = true) {
+  if (state.mode === "prepare") {
+    clearInterval(state.answerTimer);
+    setPhase("answering", "请输入中文回答");
+    $("prepAnswerInput").focus({ preventScroll: true });
+    return;
+  }
+  activateAnswerTimer(reset);
 }
 
 function browserSpeak(text, token, resetAnswer) {
@@ -504,7 +646,12 @@ function playAudioSequence(buffers, token, resetAnswer, index = 0) {
     return;
   }
   const source = state.audioContext.createBufferSource();
-  source.buffer = buffers[index];
+  if (!state.audioPrimed && index === 0) {
+    source.buffer = addPlaybackLeadIn(buffers[index]);
+    state.audioPrimed = true;
+  } else {
+    source.buffer = buffers[index];
+  }
   source.connect(state.audioContext.destination);
   if (state.recordDestination) source.connect(state.recordDestination);
   source.addEventListener("ended", () => {
@@ -581,33 +728,298 @@ function requestStart(mode, { topicIds = [] } = {}) {
 async function confirmStart() {
   try {
     await ensureAudioContext();
-    if (state.recordingEnabled) {
-      try {
-        await startRecording();
-      } catch {
-        state.recordingEnabled = false;
-        localStorage.setItem(RECORDING_KEY, "false");
-        updateRecordingSettingUI();
-        $("serviceDot").className = "fallback";
-        $("serviceStatus").textContent = "麦克风不可用，本次练习将不录音";
-      }
-    }
+    await state.voiceReady;
     state.mode = state.pendingMode;
     state.segments = state.pendingSegments;
     state.segmentIndex = 0;
     state.questionIndex = 0;
     state.asked = [];
-    state.startedAt = Date.now();
+    state.audioPrimed = false;
     state.finishing = false;
     $("welcomeActions").classList.add("is-hidden");
     $("practiceActions").classList.remove("is-hidden");
     document.querySelectorAll("[data-identity]").forEach((button) => { button.disabled = true; });
     document.querySelectorAll("[data-region]").forEach((button) => { button.disabled = true; });
     renderCurrentQuestion();
+    setPhase("loading", "正在准备考官语音");
+    const firstAudioPromise = fetchExaminerAudio(currentQuestion().text);
+    if (state.recordingEnabled) {
+      try {
+        await Promise.all([startRecording(), firstAudioPromise]);
+      } catch {
+        state.mediaStream?.getTracks().forEach((track) => track.stop());
+        state.recordingEnabled = false;
+        localStorage.setItem(RECORDING_KEY, "false");
+        updateRecordingSettingUI();
+        $("serviceDot").className = "fallback";
+        $("serviceStatus").textContent = "麦克风不可用，本次练习将不录音";
+        await firstAudioPromise;
+      }
+    } else {
+      await firstAudioPromise;
+    }
+    state.startedAt = Date.now();
     await playCurrentQuestion({ countAsAsked: true });
   } catch (error) {
     alert(error.message || "暂时无法开始练习。 ");
   }
+}
+
+function persistPreparationDrafts() {
+  localStorage.setItem(prepDraftKey(), JSON.stringify(Object.fromEntries(state.prepAnswers)));
+}
+
+function loadPreparationDrafts() {
+  try {
+    state.prepAnswers = new Map(Object.entries(JSON.parse(localStorage.getItem(prepDraftKey()) || "{}")));
+  } catch {
+    state.prepAnswers = new Map();
+  }
+}
+
+function saveCurrentPrepDraft() {
+  const question = currentQuestion();
+  if (!question || state.mode !== "prepare") return;
+  const answer = $("prepAnswerInput").value.trim();
+  if (answer) {
+    state.prepAnswers.set(question.id, answer);
+    state.prepSkipped.delete(question.id);
+  } else {
+    state.prepAnswers.delete(question.id);
+  }
+  persistPreparationDrafts();
+}
+
+async function startPreparationSession() {
+  try {
+    const topicIds = [...state.prepSelection];
+    const segments = buildPreparation(topicIds);
+    if (!segments.length) throw new Error("请至少选择一个需要准备的主题。 ");
+    state.prepTargetBand = $("prepBandSelect").value;
+    localStorage.setItem(PREP_BAND_KEY, state.prepTargetBand);
+    $("answerPrepDialog").close();
+    await ensureAudioContext();
+    await state.voiceReady;
+    state.mode = "prepare";
+    state.segments = segments;
+    state.segmentIndex = 0;
+    state.questionIndex = 0;
+    state.asked = [];
+    state.audioPrimed = false;
+    state.finishing = false;
+    loadPreparationDrafts();
+    state.prepSkipped = new Set();
+    let itemNumber = 0;
+    state.prepItems = segments.flatMap((segment) => segment.questions.map((question) => {
+      itemNumber += 1;
+      return {
+        code: `Q${String(itemNumber).padStart(3, "0")}`,
+        topicId: segment.topic.id,
+        topic: segment.topic.title,
+        question
+      };
+    }));
+    $("welcomeActions").classList.add("is-hidden");
+    $("practiceActions").classList.add("is-hidden");
+    $("prepActions").classList.remove("is-hidden");
+    document.querySelectorAll("[data-identity], [data-region]").forEach((button) => { button.disabled = true; });
+    renderCurrentQuestion();
+    setPhase("loading", "正在准备考官语音");
+    await fetchExaminerAudio(currentQuestion().text);
+    state.startedAt = Date.now();
+    await playCurrentQuestion({ countAsAsked: true });
+  } catch (error) {
+    resetWelcome();
+    alert(error.message || "暂时无法开始答案准备。 ");
+  }
+}
+
+async function advancePreparationQuestion() {
+  const segment = currentSegment();
+  let transitionKind = "";
+  if (state.questionIndex < segment.questions.length - 1) {
+    state.questionIndex += 1;
+  } else if (state.segmentIndex < state.segments.length - 1) {
+    state.segmentIndex += 1;
+    state.questionIndex = 0;
+    transitionKind = "topic";
+  } else {
+    await finishPreparationSession();
+    return;
+  }
+  $("prepAnswerInput").value = "";
+  renderCurrentQuestion();
+  await playCurrentQuestion({ countAsAsked: true, transitionKind });
+}
+
+async function previousPreparationQuestion() {
+  if (state.mode !== "prepare" || state.phase === "loading") return;
+  saveCurrentPrepDraft();
+  clearInterval(state.answerTimer);
+  stopPlayback();
+  const currentIndex = state.prepItems.indexOf(currentPrepItem());
+  if (currentIndex <= 0) return;
+  const target = state.prepItems[currentIndex - 1];
+  const segmentIndex = state.segments.findIndex((segment) => segment.topic.id === target.topicId);
+  const questionIndex = state.segments[segmentIndex].questions.findIndex((question) => question.id === target.question.id);
+  state.segmentIndex = segmentIndex;
+  state.questionIndex = questionIndex;
+  renderCurrentQuestion();
+  await playCurrentQuestion({ countAsAsked: false });
+}
+
+async function savePreparationAnswer() {
+  if (state.mode !== "prepare" || state.phase !== "answering") return;
+  saveCurrentPrepDraft();
+  clearInterval(state.answerTimer);
+  await advancePreparationQuestion();
+}
+
+async function skipPreparationQuestion() {
+  if (state.mode !== "prepare" || state.phase === "loading") return;
+  clearInterval(state.answerTimer);
+  stopPlayback();
+  const item = currentPrepItem();
+  saveCurrentPrepDraft();
+  if (item && !state.prepAnswers.get(item.question.id)?.trim()) state.prepSkipped.add(item.question.id);
+  await advancePreparationQuestion();
+}
+
+function completedPreparationItems() {
+  return state.prepItems.filter((item) => state.prepAnswers.get(item.question.id)?.trim());
+}
+
+async function finishPreparationSession() {
+  if (state.finishing || state.mode !== "prepare") return;
+  state.finishing = true;
+  saveCurrentPrepDraft();
+  clearInterval(state.answerTimer);
+  stopPlayback();
+  setPhase("finished", "答案准备已结束");
+  const completed = completedPreparationItems().length;
+  const skipped = state.prepItems.filter((item) => state.prepSkipped.has(item.question.id) && !state.prepAnswers.get(item.question.id)?.trim()).length;
+  const remaining = Math.max(0, state.prepItems.length - completed - skipped);
+  $("prepCompletedCount").textContent = completed;
+  $("prepSkippedCount").textContent = skipped;
+  $("prepRemainingCount").textContent = remaining;
+  $("prepCopyButton").disabled = completed === 0;
+  $("prepDownloadButton").disabled = completed === 0;
+  $("prepResultDialog").showModal();
+}
+
+function preparationQuestionsMarkdown(sourceSegments = state.segments) {
+  const region = state.region === "china" ? "中国大陆" : "加拿大";
+  const identity = state.identity === "study" ? "学生" : "工作";
+  const topics = sourceSegments
+    .filter((segment) => segment.questions.some((question) => state.prepAnswers.get(question.id)?.trim()))
+    .map((segment) => {
+      const questions = segment.questions.map((question, questionIndex) => {
+        const answer = state.prepAnswers.get(question.id)?.trim();
+        return `## ${questionIndex + 1}. ${question.text}
+
+**中文回答：** ${answer || "[未回答]"}`;
+      }).join("\n\n");
+      return `# 主题：${segment.topic.title}
+
+${questions}`;
+    });
+  return `# IELTS Speaking Part 1 中文答案材料
+
+- 考试地区：${region}
+- 考生身份：${identity}
+- 目标水平：Band ${state.prepTargetBand}
+
+${topics.join("\n\n---\n\n")}`;
+}
+
+function preparationPrompt() {
+  return `请根据后面的中文材料，生成一份简洁的 IELTS Speaking Part 1 个人答案。
+
+规则：
+
+1. 严格按照“主题 → 该主题下的问题”的原有顺序输出。
+2. 每个主题先写主题名称，然后依次写英文问题和对应结果。
+3. 如果中文信息充分，只生成一个 Band ${state.prepTargetBand} 左右的英文回答。答案应自然、口语化、容易记忆，通常为 2–4 句。
+4. 保留用户的真实观点、经历和身份，不要虚构个人信息。
+5. 如果中文信息不足或显示“未回答”，不要生成英文答案。直接在该问题下面用中文写：
+   信息不足，需要补充：……
+   请具体说明用户需要补充哪些真实信息，但不要另外建立汇总区域。
+6. 不要提供备用答案、记忆技巧、词汇表、短语解析、停顿标记、评分分析或总体统计。
+7. 不要把信息不足的问题集中到前面；它必须留在原主题和原问题的位置。
+8. 不要添加材料中没有出现的主题，也不要添加前言、结语或其他说明。
+
+输出格式：
+
+# 主题名称
+
+## 1. 英文问题
+
+一个英文回答。
+
+## 2. 英文问题
+
+信息不足，需要补充：请补充……
+
+现在请直接按这个格式处理全部材料。`;
+}
+
+function preparationMaterial(sourceSegments = state.segments) {
+  return `${preparationPrompt()}
+
+---
+
+# 考生材料
+
+${preparationQuestionsMarkdown(sourceSegments)}`;
+}
+
+async function copyPreparationMaterial() {
+  const material = preparationMaterial();
+  try {
+    await navigator.clipboard.writeText(material);
+  } catch {
+    const helper = document.createElement("textarea");
+    helper.value = material;
+    helper.style.position = "fixed";
+    helper.style.opacity = "0";
+    document.body.append(helper);
+    helper.select();
+    const copied = document.execCommand("copy");
+    helper.remove();
+    if (!copied) {
+      alert("复制失败，请改用“下载答案材料”。");
+      return;
+    }
+  }
+  $("prepCopyButton").textContent = "已复制，可以粘贴给 AI";
+  setTimeout(() => { $("prepCopyButton").textContent = "复制给 AI"; }, 2400);
+}
+
+function downloadPreparationMaterial(sourceSegments = state.segments) {
+  const segments = Array.isArray(sourceSegments) ? sourceSegments : state.segments;
+  const blob = new Blob([preparationMaterial(segments)], { type: "text/markdown;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `IELTS-Part1-Chinese-Answers-${new Date().toISOString().slice(0, 10)}.md`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+}
+
+function downloadSavedPreparationMaterial() {
+  loadPreparationDrafts();
+  const segments = preparationEligibleTopics()
+    .filter((topic) => topic.questions.some((question) => state.prepAnswers.get(question.id)?.trim()))
+    .map((topic) => ({ topic, questions: [...topic.questions] }));
+  if (!segments.length) return;
+  downloadPreparationMaterial(segments);
+}
+
+function finishPreparationAndReturn() {
+  if ($("prepResultDialog").open) $("prepResultDialog").close();
+  state.prepSkipped = new Set();
+  state.prepItems = [];
+  state.finishing = false;
+  resetWelcome();
 }
 
 async function nextQuestion() {
@@ -729,6 +1141,23 @@ document.querySelectorAll("[data-close]").forEach((button) => button.addEventLis
 $("simulationButton").addEventListener("click", () => requestStart("simulation"));
 $("continuousButton").addEventListener("click", () => requestStart("continuous"));
 $("specialtyPracticeButton").addEventListener("click", openSpecialtyPicker);
+$("answerPrepButton").addEventListener("click", openAnswerPrepPicker);
+$("prepTopicSearch").addEventListener("input", renderPrepPicker);
+$("prepBandSelect").addEventListener("change", () => {
+  state.prepTargetBand = $("prepBandSelect").value;
+  localStorage.setItem(PREP_BAND_KEY, state.prepTargetBand);
+});
+$("prepSelectAllButton").addEventListener("click", () => {
+  preparationEligibleTopics().forEach((topic) => state.prepSelection.add(topic.id));
+  renderPrepPicker();
+});
+$("prepClearButton").addEventListener("click", () => {
+  state.prepSelection.clear();
+  renderPrepPicker();
+});
+$("startPrepButton").addEventListener("click", startPreparationSession);
+$("prepDownloadSavedButton").addEventListener("click", downloadSavedPreparationMaterial);
+$("prepAnswerInput").addEventListener("input", () => saveCurrentPrepDraft());
 document.querySelectorAll("[data-specialty-tab]").forEach((button) => {
   button.addEventListener("click", () => {
     state.specialtyTab = button.dataset.specialtyTab;
@@ -769,13 +1198,24 @@ $("markButton").addEventListener("click", toggleCurrentMark);
 $("repeatButton").addEventListener("click", () => playCurrentQuestion({ resetAnswer: false, countAsAsked: false }));
 $("nextButton").addEventListener("click", nextQuestion);
 $("endButton").addEventListener("click", finishSession);
+$("prepPreviousButton").addEventListener("click", previousPreparationQuestion);
+$("prepSaveButton").addEventListener("click", savePreparationAnswer);
+$("prepSkipButton").addEventListener("click", skipPreparationQuestion);
+$("prepEndButton").addEventListener("click", finishPreparationSession);
 $("exportButton").addEventListener("click", exportRecording);
 $("discardButton").addEventListener("click", finishAndReturn);
 $("closeResultButton").addEventListener("click", finishAndReturn);
 $("resultDialog").addEventListener("cancel", (event) => event.preventDefault());
+$("prepCopyButton").addEventListener("click", copyPreparationMaterial);
+$("prepDownloadButton").addEventListener("click", downloadPreparationMaterial);
+$("prepReturnButton").addEventListener("click", finishPreparationAndReturn);
+$("closePrepResultButton").addEventListener("click", finishPreparationAndReturn);
+$("prepResultDialog").addEventListener("cancel", (event) => event.preventDefault());
 $("historyButton").addEventListener("click", () => { renderHistory(); $("historyDialog").showModal(); });
 document.addEventListener("keydown", (event) => {
-  if (event.code === "Space" && state.phase === "answering" && !event.repeat && !document.querySelector("dialog[open]")) {
+  const target = event.target;
+  const isEditing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable;
+  if (event.code === "Space" && state.mode !== "prepare" && state.phase === "answering" && !isEditing && !event.isComposing && !event.repeat && !document.querySelector("dialog[open]")) {
     event.preventDefault();
     nextQuestion();
   }
@@ -787,4 +1227,4 @@ updateRegionUI();
 updateRecordingSettingUI();
 updateMarkedCount();
 resetWelcome();
-checkLocalService();
+state.voiceReady = checkLocalService();

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f8fc" />
     <title>Part 1 练习 · IELTS Speaking</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260822-10" />
   </head>
   <body>
     <main class="app-shell">
@@ -55,6 +55,9 @@
           </button>
         </div>
         <h2 id="questionText">准备好后，考官将在这里提问。</h2>
+        <div class="prep-answer-editor is-hidden" id="prepAnswerEditor">
+          <textarea id="prepAnswerInput" placeholder="请用中文输入回答内容，先直接回答问题，然后说明原因，最后补充真实细节" aria-label="中文回答内容" maxlength="3000"></textarea>
+        </div>
         <div class="question-status">
           <div class="voice-state" id="voiceState">
             <span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
@@ -75,6 +78,11 @@
           <span><strong>专项练习</strong><small id="markedCount">自选主题或复习标记题</small></span>
           <span aria-hidden="true">›</span>
         </button>
+        <button class="marked-practice answer-prep-entry" id="answerPrepButton" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h10a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2zM9 9h5M9 13h4M17 8.5l2-2 1.5 1.5-2 2" /></svg>
+          <span><strong>准备我的答案</strong><small>用中文写下真实想法，整理成个人英文答案</small></span>
+          <span aria-hidden="true">›</span>
+        </button>
         <label class="recording-setting">
           <span><strong>录制本次练习</strong><small>记住当前选择</small></span>
           <input id="recordingSetting" type="checkbox" role="switch" aria-label="录制本次练习" />
@@ -91,6 +99,17 @@
           <button class="primary-button" id="nextButton" type="button">回答完毕，下一题</button>
         </div>
         <button class="end-button" id="endButton" type="button">结束本次练习</button>
+      </section>
+
+      <section class="practice-actions is-hidden" id="prepActions" aria-label="答案准备控制">
+        <div class="primary-actions active-controls">
+          <button class="secondary-button" id="prepPreviousButton" type="button" disabled>上一题</button>
+          <button class="primary-button" id="prepSaveButton" type="button" disabled>保存并进入下一题</button>
+        </div>
+        <div class="prep-secondary-actions">
+          <button class="end-button" id="prepSkipButton" type="button" disabled>跳过此题</button>
+          <button class="end-button" id="prepEndButton" type="button">结束并查看结果</button>
+        </div>
       </section>
     </main>
 
@@ -122,6 +141,40 @@
       </div>
     </dialog>
 
+    <dialog class="sheet" id="answerPrepDialog">
+      <div class="sheet-content">
+        <button class="close-button" data-close="answerPrepDialog" type="button" aria-label="关闭">×</button>
+        <p class="eyebrow">BUILD YOUR ANSWERS</p>
+        <h2>准备我的答案</h2>
+        <p class="dialog-copy prep-intro">选择需要准备的主题。Emma 提问后，用中文写下真实想法和经历。回答只保存在当前浏览器中，网站不会上传或在服务器保存。完成后可下载答案材料；将文件作为附件上传并发送给豆包、DeepSeek 等支持文件上传的 AI 即可，文件已包含完整提示词，无需另外输入说明。</p>
+        <div class="prep-band-row">
+          <span>目标语言水平</span>
+          <select id="prepBandSelect" aria-label="选择目标雅思口语水平">
+            <option value="6.0">6.0</option>
+            <option value="6.5">6.5</option>
+            <option value="7.0" selected>7.0</option>
+            <option value="7.5">7.5</option>
+          </select>
+        </div>
+        <label class="topic-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+          <input id="prepTopicSearch" type="search" placeholder="搜索主题" aria-label="搜索需要准备的主题" autocomplete="off" />
+        </label>
+        <div class="prep-select-row">
+          <span id="prepSelectionSummary">已选择 0 个主题</span>
+          <span>
+            <button id="prepSelectAllButton" type="button">全选</button>
+            <button id="prepClearButton" type="button">清空</button>
+          </span>
+        </div>
+        <div class="marked-topic-list" id="prepTopicList"></div>
+        <div class="prep-picker-actions">
+          <button class="secondary-button" id="prepDownloadSavedButton" type="button" disabled>下载已准备内容</button>
+          <button class="primary-button" id="startPrepButton" type="button" disabled>开始准备</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="sheet" id="resultDialog">
       <div class="sheet-content">
         <button class="close-button" id="closeResultButton" type="button" aria-label="关闭">×</button>
@@ -140,6 +193,25 @@
       </div>
     </dialog>
 
+    <dialog class="sheet" id="prepResultDialog">
+      <div class="sheet-content">
+        <button class="close-button" id="closePrepResultButton" type="button" aria-label="关闭">×</button>
+        <p class="eyebrow">ANSWER PREPARATION COMPLETE</p>
+        <h2>答案准备结果</h2>
+        <div class="result-stats">
+          <div><strong id="prepCompletedCount">0</strong><span>已填写</span></div>
+          <div><strong id="prepSkippedCount">0</strong><span>已跳过</span></div>
+          <div><strong id="prepRemainingCount">0</strong><span>未完成</span></div>
+        </div>
+        <p class="dialog-copy">可以直接复制全部材料给豆包、DeepSeek 等 AI，也可以下载为一个 Markdown 文件。</p>
+        <div class="prep-result-actions">
+          <button class="secondary-button" id="prepReturnButton" type="button">返回主页</button>
+          <button class="secondary-button" id="prepDownloadButton" type="button">下载答案材料</button>
+          <button class="primary-button" id="prepCopyButton" type="button">复制给 AI</button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="sheet" id="historyDialog">
       <div class="sheet-content">
         <button class="close-button" data-close="historyDialog" type="button" aria-label="关闭">×</button>
@@ -151,6 +223,6 @@
 
     <script src="bank.js"></script>
     <script src="regional-banks.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20260822-9"></script>
   </body>
 </html>
