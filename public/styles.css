@@ -20,15 +20,19 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 
 .app-shell { display: flex; flex-direction: column; width: min(100%, 760px); min-height: 100vh; margin: auto; padding: 34px 24px 32px; }
 .topbar, .profile-card, .question-heading, .question-status, .primary-actions, .local-status, .sheet-actions { display: flex; align-items: center; }
-.topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; }
+.topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 10px; }
+.topbar-title { min-width: 0; }
 h1 { font-size: clamp(1.65rem, 4vw, 2rem); letter-spacing: -.05em; }
 .eyebrow, .card-kicker { color: #7c8497; font-size: .7rem; font-weight: 750; letter-spacing: .14em; }
 .part-switch-link { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 13px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: #4b556d; font-size: .86rem; font-weight: 700; text-decoration: none; box-shadow: 0 5px 18px #52648312; transition: background .2s, border-color .2s, color .2s, transform .15s; }
 .part-switch-link:hover { border-color: #cfd6e8; color: var(--accent); }
 .part-switch-link:active { transform: scale(.98); }
 .part-switch-link:focus-visible { outline: 3px solid #516ad833; outline-offset: 2px; }
-.history-button { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 13px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: #4b556d; font-size: .86rem; font-weight: 700; box-shadow: 0 5px 18px #52648312; }
-.history-button svg { width: 18px; height: 18px; }
+.history-button, .home-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 13px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: #4b556d; font-size: .86rem; font-weight: 700; text-decoration: none; box-shadow: 0 5px 18px #52648312; }
+.history-button svg, .home-button svg { width: 18px; height: 18px; }
+.home-button { width: 42px; padding: 0; }
+.home-button:hover { color: var(--accent); }
+.home-button:focus-visible { outline: 3px solid #516ad833; outline-offset: 2px; }
 
 .profile-card { align-items: flex-start; justify-content: space-between; gap: 16px; margin: 25px 0 20px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 20px; background: #ffffffc9; box-shadow: 0 7px 20px #5264830b; }
 .profile-card h2 { margin-top: 4px; font-size: 1rem; }
@@ -174,10 +178,10 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 @media (max-width: 540px) {
   .app-shell { padding: 24px 16px 24px; }
   .contact-footer { padding-top: 28px; }
-  .topbar { grid-template-columns: minmax(0, 1fr) 42px; }
-  .part-switch-link { grid-column: 1 / -1; grid-row: 2; width: 100%; margin-top: 5px; min-height: 43px; }
+  .topbar { grid-template-columns: minmax(0, 1fr) auto 40px 40px; gap: 6px; }
+  .part-switch-link { min-height: 40px; padding: 0 8px; font-size: .72rem; white-space: nowrap; }
   .history-button span { display: none; }
-  .history-button { width: 42px; justify-content: center; padding: 0; }
+  .history-button, .home-button { width: 40px; padding: 0; }
   .profile-card { align-items: stretch; flex-direction: column; }
   .profile-option { justify-content: space-between; }
   .profile-option > span { width: 58px; }
