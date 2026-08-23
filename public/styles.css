@@ -178,6 +178,8 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .mark-button span { display: none; }
   .mark-button { width: 42px; justify-content: center; padding: 0; }
   .primary-actions { align-items: stretch; flex-direction: column; }
+  .prep-main-controls { flex-direction: row; }
+  .prep-main-controls .primary-button, .prep-main-controls .secondary-button { min-width: 0; padding: 0 10px; white-space: nowrap; }
   .active-controls .secondary-button { flex: 1; }
   .sheet-content { padding: 27px 20px; }
   .sheet-actions { align-items: stretch; flex-direction: column-reverse; }
@@ -197,5 +199,4 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   #answerPrepDialog .marked-topic-item { min-height: 49px; padding: 7px 10px; }
   .prep-picker-actions { grid-template-columns: .95fr 1.05fr; gap: 8px; margin-top: 9px; }
   .prep-picker-actions .primary-button, .prep-picker-actions .secondary-button { min-height: 48px; padding: 0 8px; white-space: nowrap; font-size: .78rem; }
-  .prep-secondary-actions { justify-content: space-around; }
 }

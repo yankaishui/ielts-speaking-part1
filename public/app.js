@@ -432,8 +432,6 @@ function setPhase(phase, label) {
   $("repeatButton").disabled = phase === "loading";
   const prepAnswering = state.mode === "prepare" && phase === "answering";
   $("prepSaveButton").disabled = !prepAnswering;
-  $("prepPreviousButton").disabled = state.mode !== "prepare" || state.prepItems.indexOf(currentPrepItem()) <= 0 || phase === "loading";
-  $("prepSkipButton").disabled = state.mode !== "prepare" || phase === "loading";
 }
 
 function renderCurrentQuestion() {
@@ -1198,9 +1196,7 @@ $("markButton").addEventListener("click", toggleCurrentMark);
 $("repeatButton").addEventListener("click", () => playCurrentQuestion({ resetAnswer: false, countAsAsked: false }));
 $("nextButton").addEventListener("click", nextQuestion);
 $("endButton").addEventListener("click", finishSession);
-$("prepPreviousButton").addEventListener("click", previousPreparationQuestion);
 $("prepSaveButton").addEventListener("click", savePreparationAnswer);
-$("prepSkipButton").addEventListener("click", skipPreparationQuestion);
 $("prepEndButton").addEventListener("click", finishPreparationSession);
 $("exportButton").addEventListener("click", exportRecording);
 $("discardButton").addEventListener("click", finishAndReturn);
