@@ -332,6 +332,7 @@ function updateSpecialtyActions() {
 }
 
 function openSpecialtyPicker() {
+  window.trackPractice?.('specialty_open');
   state.specialtyTab = "all";
   state.specialtySelection.clear();
   $("topicSearch").value = "";
@@ -462,7 +463,7 @@ function resetWelcome() {
   $("prepActions").classList.add("is-hidden");
   $("prepAnswerEditor").classList.add("is-hidden");
   $("markButton").classList.remove("is-hidden");
-  $("topicProgress").textContent = "CURRENT QUESTION";
+  $("topicProgress").textContent = "当前题目";
   $("questionProgress").textContent = "尚未开始";
   $("questionText").textContent = "准备好后，考官将在这里提问。";
   $("phaseText").textContent = "等待开始";
@@ -757,6 +758,7 @@ async function confirmStart() {
       await firstAudioPromise;
     }
     state.startedAt = Date.now();
+    window.trackPractice?.('practice_start', state.mode);
     await playCurrentQuestion({ countAsAsked: true });
   } catch (error) {
     alert(error.message || "暂时无法开始练习。 ");
@@ -825,6 +827,7 @@ async function startPreparationSession() {
     setPhase("loading", "正在准备考官语音");
     await fetchExaminerAudio(currentQuestion().text);
     state.startedAt = Date.now();
+    window.trackPractice?.('answer_prep_start', 'prepare');
     await playCurrentQuestion({ countAsAsked: true });
   } catch (error) {
     resetWelcome();
@@ -889,6 +892,7 @@ function completedPreparationItems() {
 
 async function finishPreparationSession() {
   if (state.finishing || state.mode !== "prepare") return;
+  window.trackPractice?.('answer_prep_end', 'prepare');
   state.finishing = true;
   saveCurrentPrepDraft();
   clearInterval(state.answerTimer);
@@ -1032,15 +1036,17 @@ async function nextQuestion() {
     state.questionIndex = 0;
     transitionKind = "topic";
   } else {
-    await finishSession();
+    await finishSession(true);
     return;
   }
   renderCurrentQuestion();
   await playCurrentQuestion({ countAsAsked: true, transitionKind });
 }
 
-async function finishSession() {
+async function finishSession(completed = false) {
   if (state.finishing || state.phase === "idle") return;
+  window.trackPractice?.('practice_end', state.mode);
+  if (completed === true) window.trackPractice?.('practice_complete', state.mode);
   state.finishing = true;
   clearInterval(state.answerTimer);
   stopPlayback();
